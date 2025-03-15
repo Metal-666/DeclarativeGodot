@@ -1,33 +1,114 @@
 ﻿using Godot;
 
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace DeclarativeGodot;
 
 public abstract class DSceneTree : SceneTree {
+
+	protected virtual List<DObject> CurrentDObjects { get; set; } =
+		[];
+	protected virtual List<(Node Node, string? Key)> CurrentNodes { get; set; } =
+		[];
 
 	public override void _Initialize() {
 
 		base._Initialize();
 
-		DNode dNode = Create();
+		Rebuild();
 
-		static void ConstructTreeRecursive(DNode dNode, Node parentNode) {
+	}
 
-			Node node = dNode.CreateNode();
+	public virtual void Rebuild() {
 
-			parentNode.AddChild(node);
+		foreach(DObject dObject in CurrentDObjects) {
 
-			foreach(DNode childDNode in dNode.Children) {
+			dObject.Dispose();
 
-				ConstructTreeRecursive(childDNode, node);
+		}
+
+		CurrentDObjects.Clear();
+
+		DObject root = CreateRoot();
+
+		List<Node> nodes = [];
+
+		void BuildNodeTree(DObject dObject, Node parentNode) {
+
+			CurrentDObjects.Add(dObject);
+
+			Node? node = null;
+
+			string? key = dObject._Key;
+			Type nodeType = dObject.GetNodeType();
+
+			if(!dObject._RecreateNode) {
+
+				node =
+					 CurrentNodes.FirstOrDefault(node =>
+															!nodes.Contains(node.Node) &&
+																node.Node.GetType() == nodeType &&
+																node.Key == key)
+									.Node;
+
+			}
+
+			if(node != null) {
+
+				dObject.SetNode(node);
+
+			}
+
+			else {
+
+				node = dObject.CreateNode();
+
+				CurrentNodes.Add((node, key));
+
+			}
+
+			nodes.Add(node);
+
+			Node currentParentNode = node.GetParent();
+
+			if(currentParentNode != parentNode) {
+
+				currentParentNode?.RemoveChild(node);
+
+				parentNode.AddChild(node);
+
+			}
+
+			foreach(DObject childDObject in dObject.GetChildren()) {
+
+				BuildNodeTree(childDObject, node);
 
 			}
 
 		}
 
-		ConstructTreeRecursive(dNode, Root);
+		BuildNodeTree(root, Root);
+
+		for(int i = CurrentNodes.Count - 1; i >= 0; i--) {
+
+			(Node ExistingNode, string? Key) = CurrentNodes[i];
+
+			if(nodes.Contains(ExistingNode)) {
+
+				continue;
+
+			}
+
+			CurrentNodes.RemoveAt(i);
+
+			ExistingNode.QueueFree();
+
+		}
 
 	}
 
-	public abstract DNode Create();
+	public abstract DObject CreateRoot();
 
 }

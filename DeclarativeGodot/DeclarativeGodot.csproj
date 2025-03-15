@@ -11,7 +11,7 @@
 		<Author>Metal666</Author>
 		<Name>$(MSBuildProjectName.Replace(" ", "_"))</Name>
 		<RootNamespace>$(Name)</RootNamespace>
-		<Version>0.0.1-dev2</Version>
+		<Version>0.0.1-dev18</Version>
 		<AssemblyName>$(Name)</AssemblyName>
 	</PropertyGroup>
 	<PropertyGroup>
