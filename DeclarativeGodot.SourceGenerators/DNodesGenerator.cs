@@ -69,15 +69,24 @@ public class DNodesGenerator : IIncrementalGenerator {
 																																						.Any() &&
 																																		constructorSymbol.DeclaredAccessibility ==
 																																			Accessibility.Public),
-																				[..
-																					namedTypeSymbol.GetMembers()
-																									.OfType<IPropertySymbol>()
-																									.Where(propertySymbol =>
+																				[
+																					.. namedTypeSymbol.GetMembers()
+																										.OfType<IPropertySymbol>()
+																										.Where(propertySymbol =>
 																														propertySymbol.DeclaredAccessibility == Accessibility.Public)
-																									.Where(propertySymbol =>
+																										.Where(propertySymbol =>
 																														propertySymbol.SetMethod != null)
-																									.Select(propertySymbol =>
-																														(propertySymbol.Type.ToString(), propertySymbol.Name))
+																										.Select(propertySymbol =>
+																															(propertySymbol.Type.ToString(),
+																																propertySymbol.Name))
+																				],
+																				[
+																					.. namedTypeSymbol.GetMembers()
+																										.OfType<IEventSymbol>()
+																										.Select(eventSymbol =>
+																															(eventSymbol.Type.ToString(),
+																																eventSymbol.Name,
+																																$"On{eventSymbol.Name}"))
 																				])) ??
 													[];
 						});
@@ -106,11 +115,11 @@ public class DNodesGenerator : IIncrementalGenerator {
 															)
 															.WithModifiers(
 																TokenList(
-																	new List<SyntaxToken>() {
+																	((IEnumerable<SyntaxToken>) [
 																		Token(
 																			SyntaxKind.PublicKeyword
 																		)
-																	}.AppendIf(!normalNodeClass.HasAccessibleConstructor,
+																	]).AppendIf(!normalNodeClass.HasAccessibleConstructor,
 																				Token(
 																					SyntaxKind.AbstractKeyword
 																				))
@@ -132,6 +141,10 @@ public class DNodesGenerator : IIncrementalGenerator {
 															.WithMembers(
 																List(
 																	normalNodeClass.Properties
+																						.Concat(normalNodeClass.Events
+																														.Select(@event =>
+																																			(PropertyType: @event.EventType,
+																																				PropertyName: @event.DeclarativePropertyName)))
 																						.Select(property =>
 																											PropertyDeclaration(
 																												List<AttributeListSyntax>(),
@@ -227,21 +240,31 @@ public class DNodesGenerator : IIncrementalGenerator {
 																									ExpressionStatement(
 																										AssignmentExpression(
 																											SyntaxKind.SimpleAssignmentExpression,
-																											IdentifierName("Node"),
+																											IdentifierName(
+																												"Node"
+																											),
 																											CastExpression(
-																												IdentifierName(normalNodeClass.TypeName),
-																												IdentifierName("node")
+																												IdentifierName(
+																													normalNodeClass.TypeName
+																												),
+																												IdentifierName(
+																													"node"
+																												)
 																											)
 																										)
 																									),
 																									ExpressionStatement(
 																										InvocationExpression(
-																											IdentifierName("SetProperties"),
+																											IdentifierName(
+																												"SetProperties"
+																											),
 																											ArgumentList(
 																												SeparatedList(
 																													[
 																														Argument(
-																															IdentifierName("node")
+																															IdentifierName(
+																																"node"
+																															)
 																														)
 																													]
 																												)
@@ -306,12 +329,16 @@ public class DNodesGenerator : IIncrementalGenerator {
 																												),
 																												ExpressionStatement(
 																													InvocationExpression(
-																														IdentifierName("SetProperties"),
+																														IdentifierName(
+																															"SetProperties"
+																														),
 																														ArgumentList(
 																															SeparatedList(
 																																[
 																																	Argument(
-																																		IdentifierName("node")
+																																		IdentifierName(
+																																			"node"
+																																		)
 																																	)
 																																]
 																															)
@@ -319,8 +346,14 @@ public class DNodesGenerator : IIncrementalGenerator {
 																													)
 																												),
 																												ReturnStatement(
-																													IdentifierName(
-																														"node"
+																													AssignmentExpression(
+																														SyntaxKind.SimpleAssignmentExpression,
+																														IdentifierName(
+																															"Node"
+																														),
+																														IdentifierName(
+																															"node"
+																														)
 																													)
 																												)
 																											]
@@ -402,19 +435,54 @@ public class DNodesGenerator : IIncrementalGenerator {
 																																				)
 																																			)
 																																		))
+																														.Cast<StatementSyntax>()
+																														.Concat(normalNodeClass.Events
+																																						.Select(@event =>
+																																											IfStatement(
+																																												BinaryExpression(
+																																													SyntaxKind.NotEqualsExpression,
+																																													IdentifierName(
+																																														@event.DeclarativePropertyName
+																																													),
+																																													LiteralExpression(
+																																														SyntaxKind.NullLiteralExpression
+																																													)
+																																												),
+																																												ExpressionStatement(
+																																													AssignmentExpression(
+																																														SyntaxKind.AddAssignmentExpression,
+																																														MemberAccessExpression(
+																																															SyntaxKind.SimpleMemberAccessExpression,
+																																															IdentifierName(
+																																																"node"
+																																															),
+																																															IdentifierName(
+																																																@event.EventName
+																																															)
+																																														),
+																																														IdentifierName(
+																																															@event.DeclarativePropertyName
+																																														)
+																																													)
+																																												)
+																																											)))
 																								]).PrependIf(normalNodeClass.TypeName != "Node",
 																												ExpressionStatement(
 																														InvocationExpression(
 																															MemberAccessExpression(
 																																SyntaxKind.SimpleMemberAccessExpression,
 																																BaseExpression(),
-																																IdentifierName("SetProperties")
+																																IdentifierName(
+																																	"SetProperties"
+																																)
 																															),
 																															ArgumentList(
 																																SeparatedList(
 																																	[
 																																		Argument(
-																																			IdentifierName("node")
+																																			IdentifierName(
+																																				"node"
+																																			)
 																																		)
 																																	]
 																																)
@@ -450,12 +518,113 @@ public class DNodesGenerator : IIncrementalGenerator {
 																							null,
 																							ArrowExpressionClause(
 																								TypeOfExpression(
-																									IdentifierName(normalNodeClass.TypeName)
+																									IdentifierName(
+																										normalNodeClass.TypeName
+																									)
 																								)
 																							),
 																							Token(
 																								SyntaxKind.SemicolonToken
 																							)
+																						))
+																						.Append(MethodDeclaration(
+																							List<AttributeListSyntax>(),
+																							TokenList(
+																								Token(
+																									SyntaxKind.PublicKeyword
+																								),
+																								Token(
+																									SyntaxKind.OverrideKeyword
+																								)
+																							),
+																							PredefinedType(
+																								Token(
+																									SyntaxKind.VoidKeyword
+																								)
+																							),
+																							null,
+																							Identifier(
+																								"Dispose"
+																							),
+																							null,
+																							ParameterList(),
+																							List<TypeParameterConstraintClauseSyntax>(),
+																							Block(
+																								(List<StatementSyntax>) [
+																									ExpressionStatement(
+																										InvocationExpression(
+																											MemberAccessExpression(
+																												SyntaxKind.SimpleMemberAccessExpression,
+																												BaseExpression(),
+																												IdentifierName(
+																													"Dispose"
+																												)
+																											)
+																										)
+																									),
+																									LocalDeclarationStatement(
+																										VariableDeclaration(
+																											IdentifierName(
+																												normalNodeClass.TypeName
+																											),
+																											SeparatedList(
+																												[
+																													VariableDeclarator(
+																														Identifier(
+																															"node"
+																														),
+																														null,
+																														EqualsValueClause(
+																															CastExpression(
+																																IdentifierName(
+																																	normalNodeClass.TypeName
+																																),
+																																PostfixUnaryExpression(
+																																	SyntaxKind.SuppressNullableWarningExpression,
+																																	IdentifierName(
+																																		"Node"
+																																	)
+																																)
+																															)
+																														)
+																													)
+																												]
+																											)
+																										)
+																									),
+																									.. normalNodeClass.Events
+																														.Select(@event =>
+																																			IfStatement(
+																																				BinaryExpression(
+																																					SyntaxKind.NotEqualsExpression,
+																																					IdentifierName(
+																																						@event.DeclarativePropertyName
+																																					),
+																																					LiteralExpression(
+																																						SyntaxKind.NullLiteralExpression
+																																					)
+																																				),
+																																				ExpressionStatement(
+																																					AssignmentExpression(
+																																						SyntaxKind.SubtractAssignmentExpression,
+																																						MemberAccessExpression(
+																																							SyntaxKind.SimpleMemberAccessExpression,
+																																							IdentifierName(
+																																								"node"
+																																							),
+																																							IdentifierName(
+																																								@event.EventName
+																																							)
+																																						),
+																																						IdentifierName(
+																																							@event.DeclarativePropertyName
+																																						)
+																																					)
+																																				)
+																																			))
+																								]
+																							),
+																							null
 																						))
 																)
 															)
@@ -485,7 +654,8 @@ public class DNodesGenerator : IIncrementalGenerator {
 	public record NormalNode(string TypeName,
 								string BaseTypeName,
 								bool HasAccessibleConstructor,
-								List<(string PropertyType, string PropertyName)> Properties) {
+								List<(string PropertyType, string PropertyName)> Properties,
+								List<(string EventType, string EventName, string DeclarativePropertyName)> Events) {
 
 		public virtual string DeclarativeName =>
 			$"D{TypeName}";
