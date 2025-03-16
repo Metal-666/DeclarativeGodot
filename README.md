@@ -57,7 +57,7 @@ using Godot;
 public partial class MyCustomTree : DSceneTree {
 
 	public override void _Initialize() =>
-      base._Initialize();
+		base._Initialize();
 
 	public override DObject CreateRoot() =>
 		new MyCustomWidget();
@@ -76,21 +76,23 @@ public class MyCustomWidget : DWidget {
 
 	protected override DObject Build() =>
 		new DControl() {
-         OnReady = () => GD.Print("The widget is ready!"),
-         Children = [
-            new DVBoxContainer() {
-               Children = [
-                  new DLabel() {
-                     Text = "Hello world!",
-                  },
-                  new DButton() {
-                     Text = "Exit",
-                     OnPressed = () => (Engine.GetMainLoop() as SceneTree)?.Quit()
-                  }
-               ]
-            }
-         ]
-      };
+			OnReady =
+				() => GD.Print("The widget is ready!"),
+			Children = [
+				new DVBoxContainer() {
+					Children = [
+						new DLabel() {
+							Text = "Hello world!",
+						},
+						new DButton() {
+							Text = "Exit",
+							OnPressed =
+								() => (Engine.GetMainLoop() as SceneTree)?.Quit()
+						}
+					]
+				}
+			]
+		};
 
 }
 ```
