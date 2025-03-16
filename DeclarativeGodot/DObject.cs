@@ -12,6 +12,9 @@ public abstract class DObject : IDisposable {
 	public virtual bool _RecreateNode { get; init; }
 #pragma warning restore IDE1006 // Naming Styles
 
+	public virtual void Rebuild() =>
+		(Engine.GetMainLoop() as DSceneTree)?.Rebuild();
+
 	protected internal abstract void SetNode(Node node);
 	protected internal abstract Node CreateNode();
 	protected internal abstract Type GetNodeType();
